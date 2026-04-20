@@ -63,7 +63,7 @@ namespace API.Controllers
         {
             try
             {
-                string? urlImagen = null;
+                string urlImagen = "";
 
                 // Si viene la imagen principal, la guardamos físicamente
                 if (dto.ImagenPrincipal != null)
@@ -83,7 +83,7 @@ namespace API.Controllers
             }
             catch (Exception ex)
             {
-                return StatusCode(500, $"ERROR REAL: {ex.Message} --- Detalle: {ex.InnerException?.Message}");
+                return Problem(ex.Message);
             }
         }
     }

@@ -7,6 +7,6 @@ namespace Application.Interfaces
         Task<bool> Publicar(PropiedadDto propiedadDto);
         Task<IEnumerable<PropiedadResponseDto>> ObtenerTodas();
         Task<List<PropiedadConEstrellasDto>> BuscarPropiedades(FiltroBusquedaDto filtro);
-        Task CrearPropiedad(CrearPropiedadDto dto, string? urlImagenPrincipal);
+        Task CrearPropiedad(CrearPropiedadDto dto, string? urlImage);
     }
 }

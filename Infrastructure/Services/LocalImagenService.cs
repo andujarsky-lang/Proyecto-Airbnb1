@@ -1,5 +1,4 @@
 ﻿using Application.Interfaces;
-using Microsoft.AspNetCore.Hosting;
 using System;
 using System.IO;
 using System.Threading.Tasks;
@@ -8,20 +7,17 @@ namespace Infrastructure.Services
 {
     public class LocalImagenService : IImagenService
     {
-        private readonly IWebHostEnvironment _env;
-
-        // Inyectamos el entorno para saber dónde está la carpeta del proyecto
-        public LocalImagenService(IWebHostEnvironment env)
+        public LocalImagenService()
         {
-            _env = env;
         }
 
         public async Task<string> SubirImagenAsync(Stream archivoStream, string nombreArchivo)
         {
-            // 1. Apuntamos a la carpeta "wwwroot/uploads"
-            string carpetaUploads = Path.Combine(_env.WebRootPath, "uploads");
+            // 1. Buscamos la carpeta raíz del proyecto API automáticamente
+            string rutaRaiz = Directory.GetCurrentDirectory();
+            string carpetaUploads = Path.Combine(rutaRaiz, "wwwroot", "uploads");
 
-            // Si la carpeta no existe, la creamos mágicamente
+            // Si la carpeta no existe, la creamos
             if (!Directory.Exists(carpetaUploads))
             {
                 Directory.CreateDirectory(carpetaUploads);

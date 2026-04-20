@@ -79,9 +79,12 @@ namespace Application.Services
                 PrecioPorNoche = dto.PrecioPorNoche,
                 Capacidad = dto.Capacidad,
                 HostId = dto.HostId,
-                FechaRegistro = DateTime.UtcNow,
-                ImagenPrincipalUrl = urlImagenPrincipal
+                FechaRegistro = DateTime.UtcNow
             };
+
+            if (!String.IsNullOrEmpty(urlImagenPrincipal)) { 
+                nuevaPropiedad.ImagenPrincipalUrl = urlImagenPrincipal;
+            }
 
             await _propiedadRepository.AgregarAsync(nuevaPropiedad);
             await _propiedadRepository.GuardarCambiosAsync();

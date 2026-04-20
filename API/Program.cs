@@ -104,7 +104,7 @@ builder.WebHost.ConfigureKestrel(options =>
 {
     options.Limits.MaxRequestBodySize = 104_857_600; // 100 MB
 });
-
+ 
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
@@ -113,13 +113,14 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+app.UseCors("PermitirReact");
 app.UseHttpsRedirection();
 app.UseStaticFiles();      
 
-app.UseCors("PermitirReact"); 
 app.UseAuthentication();  
 app.UseAuthorization();   
 
-app.MapControllers();     
+app.MapControllers();
+app.MapGet("/", () => "API Working!!");
 
 app.Run();
