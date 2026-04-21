@@ -4,36 +4,15 @@ using Domain.Entities;
 
 namespace Application.Services
 {
-    public class PropiedadService : IPropiedadService 
+    public class PropiedadService : IPropiedadService
     {
         private readonly IPropiedadRepository _propiedadRepository;
+        private readonly IImagenService _imagenService;
 
-        public PropiedadService(IPropiedadRepository propiedadRepository)
+        public PropiedadService(IPropiedadRepository propiedadRepository, IImagenService imagenService)
         {
             _propiedadRepository = propiedadRepository;
-        }
-
-        public async Task<bool> Publicar(PropiedadDto propiedadDto)
-        {
-            var hostExiste = await _propiedadRepository.ExisteHostAsync(propiedadDto.HostId);
-
-            if (!hostExiste)
-            {
-                return false;
-            }
-
-            var nuevaPropiedad = new Propiedad
-            {
-                Nombre = propiedadDto.Nombre,
-                Descripcion = propiedadDto.Descripcion,
-                PrecioPorNoche = propiedadDto.PrecioPorNoche,
-                HostId = propiedadDto.HostId
-            };
-
-            await _propiedadRepository.AgregarAsync(nuevaPropiedad);
-            await _propiedadRepository.GuardarCambiosAsync();
-
-            return true;
+            _imagenService = imagenService;
         }
 
         public async Task<IEnumerable<PropiedadResponseDto>> ObtenerTodas()
@@ -43,10 +22,14 @@ namespace Application.Services
             return propiedades.Select(p => new PropiedadResponseDto
             {
                 Id = p.Id,
-                HostId = p.HostId, 
+                HostId = p.HostId,
                 Nombre = p.Nombre!,
+                Ubicacion = p.Ubicacion!,
                 Descripcion = p.Descripcion!,
-                PrecioPorNoche = p.PrecioPorNoche
+                PrecioPorNoche = p.PrecioPorNoche,
+                Capacidad = p.Capacidad,
+                ImagenPrincipalUrl = p.ImagenPrincipalUrl,
+                FechaRegistro = p.FechaRegistro
             });
         }
 
@@ -54,23 +37,32 @@ namespace Application.Services
         {
             var propiedades = await _propiedadRepository.BuscarDisponiblesAsync(filtro);
 
-            // Transformamos las propiedades de la BD a nuestro DTO
-            var resultado = propiedades.Select(p => new PropiedadConEstrellasDto
+            return propiedades.Select(p => new PropiedadConEstrellasDto
             {
                 Id = p.Id,
                 Nombre = p.Nombre!,
                 Ubicacion = p.Ubicacion!,
                 PrecioPorNoche = p.PrecioPorNoche,
                 Capacidad = p.Capacidad,
-                // Si tiene reseñas, saca el promedio. Si no, ponle 0 estrellas.
-                PromedioCalificacion = p.Reseñas.Any() ? Math.Round(p.Reseñas.Average(r => r.Calificacion), 1) : 0
+                PromedioCalificacion = p.Reseñas.Any()
+                    ? Math.Round(p.Reseñas.Average(r => r.Calificacion), 1)
+                    : 0
             }).ToList();
-
-            return resultado;
         }
 
-        public async Task CrearPropiedad(CrearPropiedadDto dto, string? urlImagenPrincipal)
+        // hostId viene del JWT (el controller lo extrae y lo pasa aquí)
+        // imagenStream y nombreArchivo son null si el host no subió imagen
+        // Devuelve el ID de la propiedad creada
+        public async Task<int> CrearPropiedad(CrearPropiedadDto dto, int hostId, Stream? imagenStream, string? nombreArchivo)
         {
+            string? urlImagen = null;
+
+            // Si viene imagen, el SERVICIO es quien la sube (no el controller)
+            if (imagenStream != null && !string.IsNullOrEmpty(nombreArchivo))
+            {
+                urlImagen = await _imagenService.SubirImagenAsync(imagenStream, nombreArchivo);
+            }
+
             var nuevaPropiedad = new Propiedad
             {
                 Nombre = dto.Nombre,
@@ -78,18 +70,50 @@ namespace Application.Services
                 Descripcion = dto.Descripcion,
                 PrecioPorNoche = dto.PrecioPorNoche,
                 Capacidad = dto.Capacidad,
-                HostId = dto.HostId,
-                FechaRegistro = DateTime.UtcNow
+                HostId = hostId,  // viene del JWT, no del body
+                FechaRegistro = DateTime.UtcNow,
+                ImagenPrincipalUrl = urlImagen
             };
-
-            if (!String.IsNullOrEmpty(urlImagenPrincipal)) { 
-                nuevaPropiedad.ImagenPrincipalUrl = urlImagenPrincipal;
-            }
 
             await _propiedadRepository.AgregarAsync(nuevaPropiedad);
             await _propiedadRepository.GuardarCambiosAsync();
+
+            return nuevaPropiedad.Id; // Devolvemos el ID de la propiedad creada
         }
 
+        public async Task<bool> EditarPropiedad(int id, EditarPropiedadDto dto, int hostId, Stream? nuevaImagenStream, string? nombreArchivo)
+        {
+            var propiedad = await _propiedadRepository.ObtenerPorIdAsync(id);
 
+            if (propiedad == null || propiedad.HostId != hostId)
+                return false;
+
+            propiedad.Nombre = dto.Nombre;
+            propiedad.Ubicacion = dto.Ubicacion;
+            propiedad.Descripcion = dto.Descripcion;
+            propiedad.PrecioPorNoche = dto.PrecioPorNoche;
+            propiedad.Capacidad = dto.Capacidad;
+
+            // Solo actualizamos la imagen si el host envió una nueva
+            if (nuevaImagenStream != null && !string.IsNullOrEmpty(nombreArchivo))
+            {
+                propiedad.ImagenPrincipalUrl = await _imagenService.SubirImagenAsync(nuevaImagenStream, nombreArchivo);
+            }
+
+            await _propiedadRepository.GuardarCambiosAsync();
+            return true;
+        }
+
+        public async Task<bool> EliminarPropiedad(int id, int hostId)
+        {
+            var propiedad = await _propiedadRepository.ObtenerPorIdAsync(id);
+
+            if (propiedad == null || propiedad.HostId != hostId)
+                return false;
+
+            await _propiedadRepository.RemoverAsync(propiedad);
+            await _propiedadRepository.GuardarCambiosAsync();
+            return true;
+        }
     }
 }

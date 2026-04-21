@@ -1,10 +1,3 @@
-using Microsoft.AspNetCore.Http;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
 namespace Application.Dtos
 {
     public class CrearPropiedadDto
@@ -14,7 +7,6 @@ namespace Application.Dtos
         public string Descripcion { get; set; } = null!;
         public decimal PrecioPorNoche { get; set; }
         public int Capacidad { get; set; }
-        public int HostId { get; set; }
-        public IFormFile? ImagenPrincipal { get; set; }
+        // HostId ya no viene del body — lo lee el controller del JWT y se lo pasa al servicio
     }
 }

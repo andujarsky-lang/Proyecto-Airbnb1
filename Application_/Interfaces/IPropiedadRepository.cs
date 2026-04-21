@@ -1,4 +1,4 @@
-﻿using Application.Dtos;
+using Application.Dtos;
 using Domain.Entities;
 using System;
 using System.Collections.Generic;
@@ -11,6 +11,7 @@ namespace Application.Interfaces
         Task AgregarAsync(Propiedad propiedad);
 
         Task GuardarCambiosAsync();
+        Task RemoverAsync(Propiedad propiedad);
         Task<decimal> ObtenerPrecioNocheAsync(int propiedadId);
 
         Task<IEnumerable<Propiedad>> ObtenerTodasAsync();

@@ -15,11 +15,15 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
+// --- 1.5. REGISTRO DE MEDIATR PARA NOTIFICACIONES ---
+builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(Application.Services.UsuarioService).Assembly));
+
 // --- 2. REGISTRO DE REPOSITORIOS (Capa Infrastructure) ---
 builder.Services.AddScoped<IUsuarioRepository, UsuarioRepository>();
 builder.Services.AddScoped<IPropiedadRepository, PropiedadRepository>();
 builder.Services.AddScoped<IReservaRepository, ReservaRepository>();
 builder.Services.AddScoped<IReseñaRepository, ReseñaRepository>();
+builder.Services.AddScoped<INotificacionRepository, NotificacionRepository>();
 
 // --- 3. REGISTRO DE SERVICIOS (Capa Application) ---
 builder.Services.AddScoped<IUsuarioService, UsuarioService>();
@@ -27,7 +31,22 @@ builder.Services.AddScoped<IPropiedadService, PropiedadService>();
 builder.Services.AddScoped<IReservaService, ReservaService>();
 builder.Services.AddScoped<ITokenService, Application.Services.TokenService>();
 builder.Services.AddScoped<IReseñaService, ReseñaService>();
-builder.Services.AddScoped<IEmailService, EmailService>();
+builder.Services.AddScoped<INotificacionService, NotificacionService>();
+
+// --- 3.5. REGISTRO MANUAL DE HANDLERS DE MEDIATR ---
+builder.Services.AddScoped<MediatR.INotificationHandler<Application.Notifications.ReservaCreadaNotification>, Application.Notifications.EnviarCorreoReservaHandler>();
+builder.Services.AddScoped<MediatR.INotificationHandler<Application.Notifications.ReservaCanceladaNotification>, Application.Notifications.ReservaCanceladaHandler>();
+builder.Services.AddScoped<MediatR.INotificationHandler<Application.Notifications.ReservaCompletadaNotification>, Application.Notifications.ReservaCompletadaHandler>();
+
+// Servicio de notificaciones: usa Telegram para confirmación de correo
+builder.Services.AddScoped<IEmailService>(provider =>
+{
+    var config = provider.GetRequiredService<IConfiguration>();
+    string botToken = config["TelegramSettings:BotToken"]!;
+    long chatId = long.Parse(config["TelegramSettings:ChatId"]!);
+    return new TelegramNotificationService(botToken, chatId);
+});
+
 builder.Services.AddScoped<IImagenService, LocalImagenService>();
 
 // --- 4. CONFIGURACIoN DE SEGURIDAD (JWT) ---

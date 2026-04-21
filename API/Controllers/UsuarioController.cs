@@ -18,18 +18,39 @@ namespace API.Controllers
         }
 
         [HttpPost("registrar")]
-
         public async Task<IActionResult> Registrar([FromBody] UsuarioDto usuarioDto)
         {
-            var exito = await _usuarioService.Registrar(usuarioDto);
+            var resultado = await _usuarioService.Registrar(usuarioDto);
 
-            if (exito == true)
+            if (!resultado.Exito)
             {
-                return Ok("Usuario registrado correctamente :)"); // Código 200
+                // Error en el registro
+                return BadRequest(new 
+                { 
+                    mensaje = resultado.MensajeError,
+                    detalles = resultado.MensajeNotificacion
+                });
+            }
+
+            // Registro exitoso
+            if (resultado.NotificacionEnviada)
+            {
+                // Todo perfecto: usuario registrado y notificación enviada
+                return Ok(new 
+                { 
+                    mensaje = "Usuario registrado correctamente. Revisa tu Telegram para el código de confirmación.",
+                    notificacion = resultado.MensajeNotificacion
+                });
             }
             else
             {
-                return BadRequest("Hubo un problema al registrar el usuario."); // Código 400
+                // Usuario registrado pero notificación falló
+                return Ok(new 
+                { 
+                    mensaje = "Usuario registrado correctamente, pero no se pudo enviar la notificación.",
+                    advertencia = resultado.MensajeNotificacion,
+                    nota = "Puedes consultar tu código de confirmación con el administrador o en la base de datos."
+                });
             }
         }
 
@@ -38,16 +59,10 @@ namespace API.Controllers
         {
             var resultado = await _usuarioService.Login(loginDto.Correo ?? "", loginDto.Password ?? "");
 
-            if (resultado == null || resultado == "Usuario o contraseña incorrectos.")
-            {
-                return Unauthorized(new { mensaje = "Error al iniciar sesión. Verifica tu correo o contraseña." });
-            }
+            if (!resultado.Exito)
+                return Unauthorized(new { mensaje = resultado.MensajeError });
 
-            return Ok(new
-            {
-                mensaje = "Login exitoso",
-                token = resultado 
-            });
+            return Ok(new { mensaje = "Login exitoso", token = resultado.Token });
         }
 
         [HttpPost("confirmar-correo")]

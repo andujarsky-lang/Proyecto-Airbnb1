@@ -1,7 +1,9 @@
 ﻿using Application.Dtos;
 using Application.Interfaces;
+using Application.Notifications;
 using Domain.Entities;
 using Domain.Enums;
+using MediatR;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Linq;
@@ -15,14 +17,16 @@ namespace Application.Services
         private readonly IPropiedadRepository _propiedadRepository;
         private readonly IEmailService _emailService;
         private readonly IUsuarioRepository _usuarioRepository;
+        private readonly IMediator _mediator; // ← NUEVO: Para publicar notificaciones
 
         public ReservaService(IReservaRepository reservaRepository, IPropiedadRepository propiedadRepository, IEmailService emailService,
-        IUsuarioRepository usuarioRepository)
+        IUsuarioRepository usuarioRepository, IMediator mediator)
         {
             _reservaRepository = reservaRepository;
             _propiedadRepository = propiedadRepository;
             _emailService = emailService;
             _usuarioRepository = usuarioRepository;
+            _mediator = mediator; // ← NUEVO
         }
 
         public async Task<bool> CrearReserva(ReservaDto reservaDto, int guestId)
@@ -70,8 +74,23 @@ namespace Application.Services
             {
                 await _reservaRepository.GuardarCambiosAsync();
 
+                // ✅ NUEVO: Publicar notificación automática
                 var huesped = await _usuarioRepository.ObtenerPorIdAsync(guestId);
+                if (huesped != null)
+                {
+                    // Crear y publicar la notificación
+                    var notificacion = new ReservaCreadaNotification
+                    {
+                        ReservaId = nuevaReserva.Id,
+                        HostId = propiedad.HostId,
+                        NombreHuesped = huesped.Nombre ?? "Usuario"
+                    };
 
+                    // Esto dispara automáticamente el EnviarCorreoReservaHandler
+                    await _mediator.Publish(notificacion);
+                }
+
+                // El código del email directo lo mantenemos como backup
                 if (huesped != null && !string.IsNullOrEmpty(huesped.Correo))
                 {
                     string asunto = "¡Tu solicitud de reserva está Pendiente!";
@@ -142,6 +161,35 @@ namespace Application.Services
 
             await _reservaRepository.GuardarCambiosAsync();
 
+            // ✅ NUEVO: Publicar notificación de cancelación
+            try
+            {
+                var propiedad = await _propiedadRepository.ObtenerPorIdAsync(reserva.PropiedadId);
+                var huesped = await _usuarioRepository.ObtenerPorIdAsync(guestId);
+
+                if (propiedad != null && huesped != null)
+                {
+                    var notificacion = new ReservaCanceladaNotification
+                    {
+                        ReservaId = reservaId,
+                        HostId = propiedad.HostId,
+                        GuestId = guestId,
+                        NombrePropiedad = propiedad.Nombre ?? "Propiedad",
+                        NombreHuesped = huesped.Nombre ?? "Usuario",
+                        FechaInicio = reserva.FechaInicio,
+                        FechaFin = reserva.FechaFin
+                    };
+
+                    // Esto dispara automáticamente el ReservaCanceladaHandler
+                    await _mediator.Publish(notificacion);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[ERROR] No se pudo enviar notificación de cancelación: {ex.Message}");
+                // No bloqueamos la cancelación si falla la notificación
+            }
+
             return true;
         }
 
@@ -161,6 +209,35 @@ namespace Application.Services
 
             reserva.Estado = EstadoReserva.Completada;
             await _reservaRepository.GuardarCambiosAsync();
+
+            // ✅ NUEVO: Publicar notificación de completación
+            try
+            {
+                var propiedad = await _propiedadRepository.ObtenerPorIdAsync(reserva.PropiedadId);
+                var huesped = await _usuarioRepository.ObtenerPorIdAsync(guestId);
+
+                if (propiedad != null && huesped != null)
+                {
+                    var notificacion = new ReservaCompletadaNotification
+                    {
+                        ReservaId = reservaId,
+                        GuestId = guestId,
+                        NombrePropiedad = propiedad.Nombre ?? "Propiedad",
+                        NombreHuesped = huesped.Nombre ?? "Usuario",
+                        FechaInicio = reserva.FechaInicio,
+                        FechaFin = reserva.FechaFin
+                    };
+
+                    // Esto dispara automáticamente el ReservaCompletadaHandler
+                    await _mediator.Publish(notificacion);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[ERROR] No se pudo enviar notificación de completación: {ex.Message}");
+                // No bloqueamos la completación si falla la notificación
+            }
+
             return true;
         }
 

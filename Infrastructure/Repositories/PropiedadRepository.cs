@@ -1,4 +1,4 @@
-﻿using Application.Dtos;
+using Application.Dtos;
 using Application.Interfaces;
 using Domain.Entities;
 using Domain.Enums;
@@ -24,6 +24,12 @@ namespace Infrastructure.Repositories
         public async Task AgregarAsync(Propiedad propiedad)
         {
             await _context.Propiedades.AddAsync(propiedad);
+        }
+
+        public async Task RemoverAsync(Propiedad propiedad)
+        {
+            _context.Propiedades.Remove(propiedad);
+            await Task.CompletedTask; // Since Remove is synchronous in EF Core
         }
 
         public async Task GuardarCambiosAsync()

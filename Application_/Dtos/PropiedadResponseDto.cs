@@ -11,7 +11,11 @@ namespace Application.Dtos
         public int Id { get; set; }
         public int HostId { get; set; }
         public string Nombre { get; set; } = string.Empty;
+        public string Ubicacion { get; set; } = string.Empty;
         public string Descripcion { get; set; } = string.Empty;
         public decimal PrecioPorNoche { get; set; }
+        public int Capacidad { get; set; }
+        public string? ImagenPrincipalUrl { get; set; }
+        public DateTime FechaRegistro { get; set; }
     }
 }
